@@ -1,6 +1,9 @@
+
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
+import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -17,5 +20,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const analytics = getAnalytics(app);
+const db = getFirestore(app);
+// Initialize Storage with the specific bucket
+const storage = getStorage(app, "gs://kanacreator-af97d.firebasestorage.app");
 
-export { auth, app, analytics };
+export { auth, app, analytics, db, storage };

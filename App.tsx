@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import InputForm from './components/InputForm';
 import ResultDisplay from './components/ResultDisplay';
@@ -11,6 +12,8 @@ import { LayoutGrid, PenTool, Image as ImageIcon, Sparkles, Globe, LogOut } from
 import { translations } from './translations';
 import { auth } from './services/firebase';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { getUserProfile } from './services/userService';
+import ProfileModal from './components/ProfileModal';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -20,12 +23,24 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState<Language>('en');
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const t = translations[language];
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        try {
+          const profile = await getUserProfile(currentUser.uid);
+          setUserProfile(profile);
+        } catch (err) {
+          console.error("Error fetching user profile:", err);
+        }
+      } else {
+        setUserProfile(null);
+      }
       setAuthLoading(false);
     });
     return () => unsubscribe();
@@ -102,6 +117,23 @@ const App: React.FC = () => {
               <Globe size={14} />
               <span>{language === 'en' ? 'EN' : 'ID'}</span>
             </button>
+            <div 
+              onClick={() => setIsProfileModalOpen(true)}
+              className="flex items-center gap-2 px-2 py-1 rounded-full bg-white border border-zinc-200 hover:bg-zinc-50 transition-colors shadow-sm cursor-pointer pr-3"
+            >
+               <div className="w-6 h-6 rounded-full bg-zinc-100 overflow-hidden">
+                 {userProfile?.photoURL ? (
+                   <img src={userProfile.photoURL} alt="User" className="w-full h-full object-cover" />
+                 ) : (
+                   <div className="w-full h-full flex items-center justify-center bg-zinc-200 text-zinc-400 text-xs">
+                     {user.email?.charAt(0).toUpperCase()}
+                   </div>
+                 )}
+               </div>
+               <span className="text-xs font-bold text-zinc-900 max-w-[100px] truncate">
+                 {userProfile?.displayName || user.email?.split('@')[0]}
+               </span>
+            </div>
             <button 
               onClick={handleSignOut}
               className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900 text-white border border-zinc-900 text-xs font-bold uppercase tracking-wider hover:bg-zinc-800 transition-colors shadow-sm"
@@ -149,7 +181,7 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'planner' && (
-          <Planner language={language} />
+          <Planner language={language} user={user} userProfile={userProfile} />
         )}
 
         {activeTab === 'enhance' && (
@@ -209,6 +241,15 @@ const App: React.FC = () => {
           </button>
         </nav>
       </div>
+
+      {isProfileModalOpen && userProfile && (
+        <ProfileModal 
+          userProfile={userProfile} 
+          onClose={() => setIsProfileModalOpen(false)} 
+          language={language}
+          onUpdate={(updatedProfile) => setUserProfile(updatedProfile)}
+        />
+      )}
     </div>
   );
 };

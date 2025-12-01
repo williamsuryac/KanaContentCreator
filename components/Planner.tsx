@@ -1,16 +1,20 @@
 
-import React, { useState, useRef } from 'react';
-import { Grid, Trash2, Plus, Image as ImageIcon, Download, Share, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, Home, Search, Clapperboard, User, ChevronDown, Menu, PlusSquare, X, Sparkles } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Grid, Trash2, Plus, Image as ImageIcon, Download, Share, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, Home, Search, Clapperboard, User as UserIcon, ChevronDown, Menu, PlusSquare, X, Sparkles } from 'lucide-react';
 import { toJpeg } from 'html-to-image';
 import { translations } from '../translations';
-import { Language, GridItem, Platform } from '../types';
+import { Language, GridItem, Platform, UserProfile } from '../types';
 import { generateSocialContent } from '../services/geminiService';
+import { User } from 'firebase/auth';
+import { uploadPlannerImage, saveGridItemToFirestore, deleteGridItemFromFirestore, deletePlannerImage, fetchPlannerGrid } from '../services/plannerService';
 
 interface PlannerProps {
   language?: Language;
+  user: User;
+  userProfile?: UserProfile;
 }
 
-const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
+const Planner: React.FC<PlannerProps> = ({ language = 'en', user, userProfile }) => {
   // Initialize 12 grid slots (4 rows)
   const [gridItems, setGridItems] = useState<GridItem[]>(
     Array(12).fill(null).map((_, i) => ({ id: `slot-${i}`, url: null, file: null, caption: '' }))
@@ -31,19 +35,68 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
 
   const t = translations[language];
 
+  // Load grid from Firestore on mount
+  useEffect(() => {
+    if (user) {
+      const loadGrid = async () => {
+        try {
+          const items = await fetchPlannerGrid(user.uid);
+          setGridItems(items);
+        } catch (error) {
+          console.error("Failed to load planner grid:", error);
+        }
+      };
+      loadGrid();
+    }
+  }, [user]);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0] && activeSlotIndexRef.current !== null) {
       handleFileUpload(e.target.files[0], activeSlotIndexRef.current);
     }
   };
 
-  const handleFileUpload = (file: File, index: number) => {
-    const url = URL.createObjectURL(file);
+  const handleFileUpload = async (file: File, index: number) => {
+    // Optimistic update for loading state
     setGridItems(prev => {
       const newItems = [...prev];
-      newItems[index] = { ...newItems[index], url, file };
+      newItems[index] = { ...newItems[index], isLoading: true };
       return newItems;
     });
+
+    try {
+      // 1. Upload to Storage
+      const { url, storagePath } = await uploadPlannerImage(user.uid, file);
+      
+      const newItem: GridItem = {
+        id: `slot-${index}`,
+        url,
+        file: null, // We don't need to persist File object in state once we have URL
+        storagePath,
+        caption: '',
+        isLoading: false
+      };
+
+      // 2. Save to Firestore
+      await saveGridItemToFirestore(user.uid, index, newItem);
+
+      // 3. Update State
+      setGridItems(prev => {
+        const newItems = [...prev];
+        newItems[index] = newItem;
+        return newItems;
+      });
+
+    } catch (error) {
+      console.error("Upload failed", error);
+      // Revert loading state
+      setGridItems(prev => {
+        const newItems = [...prev];
+        newItems[index] = { ...newItems[index], isLoading: false };
+        return newItems;
+      });
+      alert("Failed to upload image. Please try again.");
+    }
   };
 
   const triggerFileInput = (index: number) => {
@@ -51,20 +104,38 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
     fileInputRef.current?.click();
   };
 
-  const removeItem = (e: React.MouseEvent, index: number) => {
+  const removeItem = async (e: React.MouseEvent, index: number) => {
     e.stopPropagation();
+    const itemToRemove = gridItems[index];
+
+    // Optimistic Update
     setGridItems(prev => {
       const newItems = [...prev];
-      newItems[index] = { ...newItems[index], url: null, file: null, caption: '' };
+      newItems[index] = { id: `slot-${index}`, url: null, file: null, caption: '', storagePath: undefined };
       return newItems;
     });
-    if (hoveredUrl === gridItems[index].url) {
+
+    if (hoveredUrl === itemToRemove.url) {
       setHoveredUrl(null);
+    }
+
+    // Async Cleanup
+    try {
+      if (itemToRemove.storagePath) {
+        await deletePlannerImage(itemToRemove.storagePath);
+      }
+      await deleteGridItemFromFirestore(user.uid, index);
+    } catch (error) {
+      console.error("Error deleting item:", error);
     }
   };
 
   // Drag and Drop Logic
   const handleDragStart = (e: React.DragEvent, index: number) => {
+    if (!gridItems[index].url) {
+       e.preventDefault();
+       return;
+    }
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
   };
@@ -74,7 +145,7 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
     e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+  const handleDrop = async (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
 
     // Case 1: Dropping a file from desktop
@@ -86,15 +157,37 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
 
     // Case 2: Swapping grid items
     if (draggedIndex !== null && draggedIndex !== targetIndex) {
+      const itemA = gridItems[draggedIndex];
+      const itemB = gridItems[targetIndex];
+
+      // Optimistic Update
       setGridItems(prev => {
         const newItems = [...prev];
-        const temp = newItems[draggedIndex];
-        newItems[draggedIndex] = newItems[targetIndex];
-        newItems[targetIndex] = temp;
+        newItems[draggedIndex] = itemB;
+        newItems[targetIndex] = itemA;
         return newItems;
       });
+
+      setDraggedIndex(null);
+
+      // Sync both slots to Firestore
+      try {
+        // If slot A was empty (null url), we should delete the doc at targetIndex (where A went) or save empty state
+        if (itemA.url) {
+           await saveGridItemToFirestore(user.uid, targetIndex, itemA);
+        } else {
+           await deleteGridItemFromFirestore(user.uid, targetIndex);
+        }
+
+        if (itemB.url) {
+           await saveGridItemToFirestore(user.uid, draggedIndex, itemB);
+        } else {
+           await deleteGridItemFromFirestore(user.uid, draggedIndex);
+        }
+      } catch (error) {
+        console.error("Error syncing swap:", error);
+      }
     }
-    setDraggedIndex(null);
   };
 
   const handleContainerDragEnter = (e: React.DragEvent) => {
@@ -144,27 +237,55 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
     setCaptionText('');
   };
 
-  const handleSaveCaption = () => {
+  const handleSaveCaption = async () => {
     if (editingItem) {
+      // Optimistic Update
       setGridItems(prev => {
         const newItems = [...prev];
         newItems[editingItem.index] = { ...newItems[editingItem.index], caption: captionText };
         return newItems;
       });
+      
+      const updatedItem = { ...editingItem.item, caption: captionText };
+      
+      // Async Sync
+      try {
+        await saveGridItemToFirestore(user.uid, editingItem.index, updatedItem);
+      } catch (error) {
+        console.error("Error saving caption:", error);
+      }
+
       closeCaptionModal();
     }
   };
 
   const handleGenerateCaption = async () => {
-    if (!editingItem || !editingItem.item.file) return;
+    if (!editingItem) return;
     
     setIsGeneratingCaption(true);
     try {
-      // Use existing text as context if provided, otherwise generic
+      // We need a File object to send to Gemini. 
+      // Since we fetch from URL, we need to convert URL to Blob/File if local file is missing.
+      // However, geminiService expects a File. 
+      // For simplicity in this demo, we'll try to fetch the blob from the URL.
+      
+      let fileToUse = editingItem.item.file;
+      
+      if (!fileToUse && editingItem.item.url) {
+         const response = await fetch(editingItem.item.url);
+         const blob = await response.blob();
+         fileToUse = new File([blob], "image.jpg", { type: blob.type });
+      }
+
+      if (!fileToUse) {
+         alert("Cannot generate caption: Image source missing.");
+         return;
+      }
+      
       const context = captionText || "Write an engaging, aesthetic caption for this photo.";
       
       const result = await generateSocialContent(
-        editingItem.item.file,
+        fileToUse,
         context,
         Platform.INSTAGRAM,
         language as Language
@@ -181,6 +302,10 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
   // Find caption for hovered item
   const hoveredItem = hoveredUrl ? gridItems.find(item => item.url === hoveredUrl) : null;
   const currentHoverCaption = hoveredItem?.caption || "Essential minimalism for your daily life. Discover our new collection designed for modern living. #SimpleLiving #Kanagara";
+
+  // Mockup Data
+  const profileName = userProfile?.displayName || "KanagaraStore";
+  const profilePhoto = userProfile?.photoURL || "https://storage.googleapis.com/kanagaraappsbucket/Main%20Logo%20Kanagara%202025.png";
 
   return (
     <div className="flex flex-col lg:flex-row justify-center items-start gap-8 xl:gap-24 animate-fade-in max-w-[1600px] mx-auto pb-12 relative">
@@ -231,7 +356,7 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
           {/* App Bar */}
           <div className="px-5 h-11 flex items-center justify-between mb-1">
             <div className="flex items-center gap-1 cursor-pointer">
-              <span className="font-bold text-xl text-zinc-900 tracking-tight">KanagaraStore</span>
+              <span className="font-bold text-xl text-zinc-900 tracking-tight">{profileName}</span>
               <div className="relative">
                  <ChevronDown size={18} strokeWidth={2.5} className="text-zinc-900 mt-0.5" />
                  <div className="absolute -top-0.5 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white" />
@@ -250,7 +375,7 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
                 <div className="w-full h-full rounded-full bg-white p-[2px]">
                    <div className="w-full h-full rounded-full bg-zinc-100 flex items-center justify-center overflow-hidden">
                      <img 
-                       src="https://storage.googleapis.com/kanagaraappsbucket/Main%20Logo%20Kanagara%202025.png" 
+                       src={profilePhoto} 
                        alt="Profile" 
                        className="w-full h-full object-cover"
                      />
@@ -274,7 +399,7 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
             </div>
             
             <div className="space-y-0.5 mb-5">
-              <h1 className="font-semibold text-sm">KanagaraStore</h1>
+              <h1 className="font-semibold text-sm">{profileName}</h1>
               <span className="text-xs text-zinc-500 bg-zinc-50 px-0 rounded-full inline-block mb-1">Shopping & retail</span>
               <p className="text-sm text-zinc-900 whitespace-pre-line leading-snug">
                 Your Essentials for Simple Living 🌿{'\n'}
@@ -318,7 +443,7 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
                           <div className="w-8 h-8 rounded-full border-2 border-zinc-200 border-dashed opacity-50"></div>
                         </div>
                     </div>
-                    <span className="text-[11px] text-zinc-900 font-medium tracking-tight">{h.name}</span>
+                    <span className="text--[11px] text-zinc-900 font-medium tracking-tight">{h.name}</span>
                   </div>
               ))}
             </div>
@@ -333,7 +458,7 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
               <Clapperboard size={22} />
             </div>
             <div className="flex-1 py-2.5 border-b-[1.5px] border-transparent flex justify-center text-zinc-400 cursor-pointer hover:text-zinc-600">
-               <User size={22} className="border-2 border-transparent rounded-sm" />
+               <UserIcon size={22} className="border-2 border-transparent rounded-sm" />
             </div>
           </div>
 
@@ -342,7 +467,7 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
             {gridItems.map((item, index) => (
               <div
                 key={item.id}
-                draggable
+                draggable={!!item.url && !item.isLoading}
                 onDragStart={(e) => handleDragStart(e, index)}
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, index)}
@@ -354,7 +479,11 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
                   ${draggedIndex === index ? 'opacity-50 scale-95' : 'opacity-100'}
                 `}
               >
-                {item.url ? (
+                {item.isLoading ? (
+                  <div className="w-full h-full flex items-center justify-center bg-zinc-100">
+                    <span className="w-6 h-6 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
+                  </div>
+                ) : item.url ? (
                   <>
                     <img 
                       src={item.url} 
@@ -389,7 +518,7 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
             <Clapperboard size={24} strokeWidth={2} className="text-zinc-900" />
             <div className="w-6 h-6 rounded-full overflow-hidden border border-zinc-200">
                 <img 
-                  src="https://storage.googleapis.com/kanagaraappsbucket/Main%20Logo%20Kanagara%202025.png" 
+                  src={profilePhoto} 
                   alt="Profile" 
                   className="w-full h-full object-cover" 
                 />
@@ -431,13 +560,13 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 to-fuchsia-600 p-[1.5px]">
                             <div className="w-full h-full rounded-full bg-white p-[1.5px]">
                               <img 
-                                src="https://storage.googleapis.com/kanagaraappsbucket/Main%20Logo%20Kanagara%202025.png" 
+                                src={profilePhoto} 
                                 alt="Avatar" 
                                 className="w-full h-full rounded-full object-cover"
                               />
                             </div>
                          </div>
-                         <span className="text-sm font-semibold text-zinc-900">KanagaraStore</span>
+                         <span className="text-sm font-semibold text-zinc-900">{profileName}</span>
                       </div>
                       <MoreHorizontal size={20} className="text-zinc-600" />
                     </div>
@@ -465,7 +594,7 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
                     <div className="px-4 pb-6 space-y-1.5">
                        <p className="text-sm font-semibold text-zinc-900">2,492 likes</p>
                        <p className="text-sm text-zinc-900 leading-snug whitespace-pre-line">
-                         <span className="font-semibold mr-1.5">KanagaraStore</span>
+                         <span className="font-semibold mr-1.5">{profileName}</span>
                          {currentHoverCaption}
                        </p>
                        <p className="text-xs text-zinc-500 mt-1 uppercase tracking-tight">2 hours ago</p>
@@ -480,7 +609,7 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
                     <Clapperboard size={26} strokeWidth={1.5} className="text-zinc-400" />
                     <div className="w-7 h-7 rounded-full overflow-hidden border border-zinc-200">
                       <img 
-                        src="https://storage.googleapis.com/kanagaraappsbucket/Main%20Logo%20Kanagara%202025.png" 
+                        src={profilePhoto} 
                         alt="Profile" 
                         className="w-full h-full object-cover" 
                       />

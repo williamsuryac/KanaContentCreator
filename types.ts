@@ -60,4 +60,15 @@ export interface GridItem {
   url: string | null;
   file: File | null;
   caption?: string;
+  storagePath?: string; // Path in Firebase Storage
+  isLoading?: boolean; // UI state for upload progress
+}
+
+export interface UserProfile {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  storagePath?: string; // For the profile photo in storage
+  createdAt: Date;
 }
