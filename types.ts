@@ -54,3 +54,10 @@ export interface EnhanceJob {
   resultUrl?: string;
   error?: string;
 }
+
+export interface GridItem {
+  id: string;
+  url: string | null;
+  file: File | null;
+  caption?: string;
+}

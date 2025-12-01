@@ -1,16 +1,20 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import InputForm from './components/InputForm';
 import ResultDisplay from './components/ResultDisplay';
 import Planner from './components/Planner';
 import ImageGenerator from './components/ImageGenerator';
 import Enhance from './components/Enhance';
+import Auth from './components/Auth';
 import { UserInput, GeneratedContent, Language } from './types';
 import { generateSocialContent } from './services/geminiService';
-import { LayoutGrid, PenTool, Image as ImageIcon, Sparkles, Globe } from 'lucide-react';
+import { LayoutGrid, PenTool, Image as ImageIcon, Sparkles, Globe, LogOut } from 'lucide-react';
 import { translations } from './translations';
+import { auth } from './services/firebase';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 
 const App: React.FC = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'captions' | 'visuals' | 'planner' | 'enhance'>('captions');
   const [content, setContent] = useState<GeneratedContent | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -18,6 +22,14 @@ const App: React.FC = () => {
   const [language, setLanguage] = useState<Language>('en');
 
   const t = translations[language];
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleGenerate = async (input: UserInput) => {
     if (!input.imageFile) return;
@@ -49,6 +61,26 @@ const App: React.FC = () => {
     setLanguage(prev => prev === 'en' ? 'id' : 'en');
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#FBFBFD]">
+        <div className="w-8 h-8 border-4 border-zinc-200 border-t-zinc-900 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Auth language={language} />;
+  }
+
   return (
     <div className="min-h-screen bg-[#FBFBFD] text-zinc-900 font-sans selection:bg-zinc-200 flex flex-col relative">
       <header className="sticky top-0 z-50 bg-[#FBFBFD]/80 backdrop-blur-md border-b border-zinc-200/50">
@@ -62,13 +94,22 @@ const App: React.FC = () => {
             <h1 className="text-lg font-bold tracking-tight">Kana Creator</h1>
           </div>
           
-          <button 
-            onClick={toggleLanguage}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-zinc-200 text-xs font-bold uppercase tracking-wider hover:bg-zinc-50 transition-colors shadow-sm"
-          >
-            <Globe size={14} />
-            <span>{language === 'en' ? 'EN' : 'ID'}</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={toggleLanguage}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-zinc-200 text-xs font-bold uppercase tracking-wider hover:bg-zinc-50 transition-colors shadow-sm"
+            >
+              <Globe size={14} />
+              <span>{language === 'en' ? 'EN' : 'ID'}</span>
+            </button>
+            <button 
+              onClick={handleSignOut}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900 text-white border border-zinc-900 text-xs font-bold uppercase tracking-wider hover:bg-zinc-800 transition-colors shadow-sm"
+            >
+              <LogOut size={14} />
+              <span className="hidden sm:inline">{t.signOut}</span>
+            </button>
+          </div>
         </div>
       </header>
 

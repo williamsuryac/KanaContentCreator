@@ -98,24 +98,32 @@ export const generateSocialContent = async (
 };
 
 export const generateVisualContent = async (
-  imageFile: File,
+  imageFiles: File[],
   context: string,
   style: VisualStyle,
   language: Language
 ): Promise<string> => {
-  const base64Image = await fileToBase64(imageFile);
+  
+  // Convert all files to base64 parts
+  const imageParts = await Promise.all(imageFiles.map(async (file) => ({
+    inlineData: {
+      mimeType: file.type,
+      data: await fileToBase64(file),
+    },
+  })));
   
   const langContext = language === 'id' ? "If any text is displayed in the image (like for Infographics), it MUST be in Indonesian." : "Text should be in English.";
 
   const prompt = `
-    Create a high-quality, professional Instagram post (vertical 4:5 ratio) featuring this product.
+    Create a high-quality, professional Instagram post (vertical 4:5 ratio) featuring these product materials.
     
     Style: ${style}
     Context & Details to include: ${context}
     ${langContext}
     
     Instructions:
-    - Use the uploaded image as the source material for the product.
+    - Use the uploaded images as the source materials for the product composition.
+    - If multiple images are provided, arrange them creatively or select the best angle/item to fit the chosen style.
     - If the style is 'Data Infographic' or 'Microblog', incorporate text elements based on the Context provided.
     - If the style is 'Meme', make it witty and relatable to office workers/students.
     - Ensure the aesthetic is modern, clean, and premium (Kana Creator style).
@@ -127,12 +135,7 @@ export const generateVisualContent = async (
       model: 'gemini-3-pro-image-preview',
       contents: {
         parts: [
-          {
-            inlineData: {
-              mimeType: imageFile.type,
-              data: base64Image,
-            },
-          },
+          ...imageParts,
           {
             text: prompt,
           },
@@ -176,7 +179,7 @@ export const enhanceProductImage = async (
   
   // Construct object color description
   const colorInstruction = settings.objectColor 
-    ? `Change the product color to ${settings.objectColor}.` 
+    ? `CHANGE PRODUCT COLOR: Change the main product's material color to ${settings.objectColor}. IMPORTANT: The shape, form, geometry, and texture must remain EXACTLY the same as the original image. Do not morph, distort, or reimagine the object. It must look like the exact same object, just painted ${settings.objectColor}.` 
     : "Keep the product colors true to life.";
 
   const prompt = `
@@ -184,12 +187,14 @@ export const enhanceProductImage = async (
     
     Instructions:
     1. ${colorInstruction}
-    2. Background: Set to ${bgDescription}.
-    3. Lighting: Apply soft, balanced, professional studio lighting. Eliminate harsh shadows.
-    4. Quality: Ensure the image is crisp, modern, and suitable for a premium catalog.
-    5. Integrity: Preserve the product's original shape, texture, and key details (unless color change is requested).
-    6. Remove any clutter or distractions from the original image.
+    2. BACKGROUND: Set to ${bgDescription}.
+    3. LIGHTING: Apply soft, balanced, professional studio lighting. Eliminate harsh shadows.
+    4. PRESERVE GEOMETRY: The product shape in the output MUST match the input image 100%. Do not add or remove parts of the product.
+    5. CLEANUP: Remove any background distractions, text, or clutter, leaving only the product on the requested background.
   `;
+
+  // Handle unsupported 4:5 ratio by mapping to closest supported vertical ratio (3:4)
+  const apiAspectRatio = settings.aspectRatio === '4:5' ? '3:4' : settings.aspectRatio;
 
   try {
     const response = await ai.models.generateContent({
@@ -209,7 +214,7 @@ export const enhanceProductImage = async (
       },
       config: {
         imageConfig: {
-          aspectRatio: settings.aspectRatio as any || "1:1",
+          aspectRatio: apiAspectRatio as any || "1:1",
         }
       },
     });
