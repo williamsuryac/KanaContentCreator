@@ -1,6 +1,9 @@
+
 import React, { useState, useRef } from 'react';
 import { Grid, Trash2, Plus, Image as ImageIcon, Download, Share } from 'lucide-react';
 import { toJpeg } from 'html-to-image';
+import { translations } from '../translations';
+import { Language } from '../types';
 
 interface GridItem {
   id: string;
@@ -8,7 +11,11 @@ interface GridItem {
   file: File | null;
 }
 
-const Planner: React.FC = () => {
+interface PlannerProps {
+  language?: Language;
+}
+
+const Planner: React.FC<PlannerProps> = ({ language = 'en' }) => {
   // Initialize 12 grid slots (4 rows)
   const [gridItems, setGridItems] = useState<GridItem[]>(
     Array(12).fill(null).map((_, i) => ({ id: `slot-${i}`, url: null, file: null }))
@@ -20,6 +27,8 @@ const Planner: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeSlotIndexRef = useRef<number | null>(null);
   const plannerRef = useRef<HTMLDivElement>(null);
+
+  const t = translations[language];
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0] && activeSlotIndexRef.current !== null) {
@@ -123,7 +132,7 @@ const Planner: React.FC = () => {
   return (
     <div className="flex flex-col items-center gap-6 animate-fade-in">
       <div className="flex justify-between items-center w-full max-w-md">
-        <h3 className="text-xl font-bold text-zinc-900">Grid Preview</h3>
+        <h3 className="text-xl font-bold text-zinc-900">{t.gridPreview}</h3>
         <button 
           onClick={handleSaveImage}
           disabled={isSaving}
@@ -134,7 +143,7 @@ const Planner: React.FC = () => {
           ) : (
             <Download size={16} />
           )}
-          Save Mockup
+          {t.saveMockup}
         </button>
       </div>
 
@@ -176,15 +185,15 @@ const Planner: React.FC = () => {
             <div className="flex-1 flex justify-around ml-4">
               <div className="flex flex-col items-center">
                 <span className="font-bold text-lg leading-tight">12</span>
-                <span className="text-xs text-zinc-500">Posts</span>
+                <span className="text-xs text-zinc-500">{t.posts}</span>
               </div>
               <div className="flex flex-col items-center">
                 <span className="font-bold text-lg leading-tight">12.5k</span>
-                <span className="text-xs text-zinc-500">Followers</span>
+                <span className="text-xs text-zinc-500">{t.followers}</span>
               </div>
               <div className="flex flex-col items-center">
                 <span className="font-bold text-lg leading-tight">402</span>
-                <span className="text-xs text-zinc-500">Following</span>
+                <span className="text-xs text-zinc-500">{t.following}</span>
               </div>
             </div>
           </div>
@@ -196,8 +205,8 @@ const Planner: React.FC = () => {
           </div>
 
           <div className="flex gap-2 mt-4">
-            <button className="flex-1 bg-zinc-100 py-1.5 rounded-lg text-sm font-semibold text-zinc-900">Edit Profile</button>
-            <button className="flex-1 bg-zinc-100 py-1.5 rounded-lg text-sm font-semibold text-zinc-900">Share Profile</button>
+            <button className="flex-1 bg-zinc-100 py-1.5 rounded-lg text-sm font-semibold text-zinc-900">{t.editProfile}</button>
+            <button className="flex-1 bg-zinc-100 py-1.5 rounded-lg text-sm font-semibold text-zinc-900">{t.shareProfile}</button>
           </div>
         </div>
 

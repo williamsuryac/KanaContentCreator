@@ -1,15 +1,20 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, X, RefreshCw, Download, Settings, Image as ImageIcon, Check, Maximize2, Trash2, Sparkles } from 'lucide-react';
-import { EnhanceJob, EnhanceSettings } from '../types';
+import { EnhanceJob, EnhanceSettings, Language } from '../types';
 import { enhanceProductImage } from '../services/geminiService';
+import { translations } from '../translations';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
 
 const BACKGROUND_OPTIONS = ['White', 'Black', 'Gray', 'Green Screen', 'Custom'];
 const RATIO_OPTIONS = ['1:1', '3:4', '4:3', '16:9', '9:16'];
 
-const Enhance: React.FC = () => {
+interface EnhanceProps {
+  language?: Language;
+}
+
+const Enhance: React.FC<EnhanceProps> = ({ language = 'en' }) => {
   const [jobs, setJobs] = useState<EnhanceJob[]>([]);
   const [settings, setSettings] = useState<EnhanceSettings>({
     aspectRatio: '1:1',
@@ -24,6 +29,8 @@ const Enhance: React.FC = () => {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const frameInputRef = useRef<HTMLInputElement>(null);
+
+  const t = translations[language];
 
   // Helper to create initial job
   const createJob = (file: File): EnhanceJob => ({
@@ -139,13 +146,13 @@ const Enhance: React.FC = () => {
       {/* Sidebar Controls */}
       <div className="w-80 flex-shrink-0 bg-white rounded-3xl border border-zinc-200 p-6 overflow-y-auto shadow-sm">
         <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-          <Settings size={20} /> Settings
+          <Settings size={20} /> {t.settings}
         </h2>
 
         <div className="space-y-6">
           {/* Aspect Ratio */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Aspect Ratio</label>
+            <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{t.aspectRatio}</label>
             <div className="grid grid-cols-3 gap-2">
               {RATIO_OPTIONS.map(r => (
                 <button
@@ -165,7 +172,7 @@ const Enhance: React.FC = () => {
 
           {/* Background Color */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Background</label>
+            <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{t.background}</label>
             <div className="flex flex-wrap gap-2">
               {BACKGROUND_OPTIONS.map(opt => (
                 <button
@@ -196,7 +203,7 @@ const Enhance: React.FC = () => {
 
           {/* Object Color */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Object Color</label>
+            <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{t.objectColor}</label>
              <div className="flex items-center gap-2">
                 <input 
                   type="text" 
@@ -216,7 +223,7 @@ const Enhance: React.FC = () => {
 
           {/* Frame Overlay */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Frame Overlay</label>
+            <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{t.frameOverlay}</label>
             <div 
               onClick={() => frameInputRef.current?.click()}
               className="border-2 border-dashed border-zinc-200 rounded-xl p-4 text-center cursor-pointer hover:bg-zinc-50 transition-colors relative overflow-hidden"
@@ -227,7 +234,7 @@ const Enhance: React.FC = () => {
               ) : (
                 <div className="text-zinc-400 text-xs">
                   <Upload size={16} className="mx-auto mb-1" />
-                  Click to upload PNG frame
+                  {t.uploadFrame}
                 </div>
               )}
                {framePreview && (
@@ -254,11 +261,11 @@ const Enhance: React.FC = () => {
               {isProcessing ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Processing...
+                  {t.processing}
                 </>
               ) : (
                 <>
-                  <RefreshCw size={16} /> Enhance All
+                  <RefreshCw size={16} /> {t.enhanceAll}
                 </>
               )}
             </button>
@@ -275,7 +282,7 @@ const Enhance: React.FC = () => {
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 rounded-full text-sm font-medium transition-colors"
             >
-              <Upload size={16} /> Add Images
+              <Upload size={16} /> {t.addImages}
             </button>
             <input 
               type="file" 
@@ -293,7 +300,7 @@ const Enhance: React.FC = () => {
             disabled={!jobs.some(j => j.status === 'completed')}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-sm font-medium transition-colors disabled:opacity-50 disabled:bg-zinc-300"
           >
-            <Download size={16} /> Download All
+            <Download size={16} /> {t.downloadAll}
           </button>
         </div>
 
@@ -304,8 +311,8 @@ const Enhance: React.FC = () => {
               <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
                 <ImageIcon size={32} />
               </div>
-              <p className="font-medium">No images uploaded yet</p>
-              <p className="text-sm mt-1">Upload products to enhance</p>
+              <p className="font-medium">{t.noImages}</p>
+              <p className="text-sm mt-1">{t.uploadToEnhance}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -358,14 +365,14 @@ const Enhance: React.FC = () => {
                            onClick={(e) => { e.stopPropagation(); handleRegenerate(job); }} 
                            className="text-xs font-medium text-zinc-600 hover:text-zinc-900 flex items-center gap-1"
                          >
-                           <RefreshCw size={12} /> Retry
+                           <RefreshCw size={12} /> {t.retry}
                          </button>
                       ) : job.status === 'idle' ? (
                          <button 
                            onClick={(e) => { e.stopPropagation(); processJob(job); }}
                            className="text-xs font-bold text-blue-600 hover:text-blue-700"
                          >
-                           Enhance
+                           {t.enhance}
                          </button>
                       ) : null}
                    </div>
@@ -380,7 +387,7 @@ const Enhance: React.FC = () => {
       {comparisonJob && (
         <div className="fixed inset-0 z-50 bg-black/90 flex flex-col animate-fade-in">
           <div className="h-16 flex items-center justify-between px-6 text-white">
-            <h3 className="font-bold">Comparison View</h3>
+            <h3 className="font-bold">{t.comparison}</h3>
             <button onClick={() => setComparisonJob(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
               <X size={24} />
             </button>
@@ -390,7 +397,7 @@ const Enhance: React.FC = () => {
             <div className="flex-1 max-w-2xl h-full flex flex-col gap-2">
               <div className="bg-zinc-900 rounded-2xl overflow-hidden flex-1 relative">
                 <img src={comparisonJob.previewUrl} className="w-full h-full object-contain" alt="Original" />
-                <div className="absolute bottom-4 left-4 bg-black/60 px-3 py-1 rounded-full text-xs font-bold text-white backdrop-blur-sm">ORIGINAL</div>
+                <div className="absolute bottom-4 left-4 bg-black/60 px-3 py-1 rounded-full text-xs font-bold text-white backdrop-blur-sm">{t.original}</div>
               </div>
             </div>
             
@@ -401,7 +408,7 @@ const Enhance: React.FC = () => {
                     <img src={framePreview} className="absolute inset-0 w-full h-full object-contain pointer-events-none" alt="Frame" />
                  )}
                  <div className="absolute bottom-4 left-4 bg-blue-600/90 px-3 py-1 rounded-full text-xs font-bold text-white backdrop-blur-sm flex items-center gap-1">
-                   <Sparkles size={12} /> ENHANCED
+                   <Sparkles size={12} /> {t.enhanced}
                  </div>
                </div>
             </div>
@@ -412,7 +419,7 @@ const Enhance: React.FC = () => {
                onClick={() => { handleRegenerate(comparisonJob); setComparisonJob(null); }}
                className="px-6 py-2 bg-zinc-800 text-white rounded-full font-medium hover:bg-zinc-700 transition-colors"
              >
-               Regenerate
+               {t.regenerate}
              </button>
              <button 
                onClick={async () => {
@@ -423,7 +430,7 @@ const Enhance: React.FC = () => {
                }}
                className="px-6 py-2 bg-white text-black rounded-full font-bold hover:bg-gray-100 transition-colors flex items-center gap-2"
              >
-               <Download size={16} /> Download
+               <Download size={16} /> {t.download}
              </button>
           </div>
         </div>

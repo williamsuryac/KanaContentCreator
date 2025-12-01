@@ -1,10 +1,13 @@
+
 import React from 'react';
-import { GeneratedContent, VideoIdea } from '../types';
+import { GeneratedContent, VideoIdea, Language } from '../types';
 import { Copy, Check, Clapperboard, Hash, Sparkles, MessageCircle, Type } from 'lucide-react';
+import { translations } from '../translations';
 
 interface ResultDisplayProps {
   content: GeneratedContent;
   onReset: () => void;
+  language?: Language;
 }
 
 const CopyButton: React.FC<{ text: string }> = ({ text }) => {
@@ -40,7 +43,7 @@ const Card: React.FC<{ title: string; icon: React.ReactNode; content: string; cl
   </div>
 );
 
-const VideoIdeaCard: React.FC<{ idea: VideoIdea; index: number }> = ({ idea, index }) => (
+const VideoIdeaCard: React.FC<{ idea: VideoIdea; index: number; t: any }> = ({ idea, index, t }) => (
   <div className="bg-zinc-50 p-6 rounded-3xl border border-zinc-200/60">
     <div className="flex items-center justify-between mb-4">
       <div className="flex items-center gap-3">
@@ -53,13 +56,13 @@ const VideoIdeaCard: React.FC<{ idea: VideoIdea; index: number }> = ({ idea, ind
     
     <div className="space-y-4">
       <div>
-        <h5 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Storyboard</h5>
+        <h5 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">{t.storyboard}</h5>
         <p className="text-sm text-zinc-700 bg-white p-3 rounded-xl border border-zinc-100 italic">
           {idea.storyboard}
         </p>
       </div>
       <div>
-        <h5 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Script</h5>
+        <h5 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">{t.script}</h5>
         <p className="text-sm text-zinc-700 leading-relaxed font-mono bg-white p-3 rounded-xl border border-zinc-100">
           {idea.script}
         </p>
@@ -68,38 +71,40 @@ const VideoIdeaCard: React.FC<{ idea: VideoIdea; index: number }> = ({ idea, ind
   </div>
 );
 
-const ResultDisplay: React.FC<ResultDisplayProps> = ({ content, onReset }) => {
+const ResultDisplay: React.FC<ResultDisplayProps> = ({ content, onReset, language = 'en' }) => {
+  const t = translations[language];
+
   return (
     <div className="w-full max-w-4xl mx-auto space-y-8 animate-fade-in">
       <div className="flex justify-between items-center mb-8">
-        <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Generated Content</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-zinc-900">{t.resultsTitle}</h2>
         <button 
           onClick={onReset}
           className="text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
         >
-          Start Over
+          {t.startOver}
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card 
-          title="Headline" 
+          title={t.headline} 
           icon={<Type size={16} />} 
           content={content.headline} 
           className="md:col-span-2 bg-gradient-to-br from-zinc-50 to-white"
         />
         <Card 
-          title="Hook" 
+          title={t.hook} 
           icon={<Sparkles size={16} />} 
           content={content.hook} 
         />
         <Card 
-          title="Call to Action" 
+          title={t.cta} 
           icon={<MessageCircle size={16} />} 
           content={content.callToAction} 
         />
         <Card 
-          title="Caption" 
+          title={t.caption} 
           icon={<Hash size={16} />} 
           content={content.caption} 
           className="md:col-span-2"
@@ -110,11 +115,11 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ content, onReset }) => {
         <div className="mt-12 space-y-6">
           <div className="flex items-center gap-2 mb-6 border-b border-zinc-200 pb-4">
             <Clapperboard className="text-zinc-900" size={24} />
-            <h3 className="text-xl font-bold text-zinc-900">Video Concepts</h3>
+            <h3 className="text-xl font-bold text-zinc-900">{t.videoConcepts}</h3>
           </div>
           <div className="grid grid-cols-1 gap-6">
             {content.videoIdeas.map((idea, idx) => (
-              <VideoIdeaCard key={idx} idea={idea} index={idx} />
+              <VideoIdeaCard key={idx} idea={idea} index={idx} t={t} />
             ))}
           </div>
         </div>

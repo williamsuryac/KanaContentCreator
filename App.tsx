@@ -5,15 +5,19 @@ import ResultDisplay from './components/ResultDisplay';
 import Planner from './components/Planner';
 import ImageGenerator from './components/ImageGenerator';
 import Enhance from './components/Enhance';
-import { UserInput, GeneratedContent } from './types';
+import { UserInput, GeneratedContent, Language } from './types';
 import { generateSocialContent } from './services/geminiService';
-import { LayoutGrid, PenTool, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { LayoutGrid, PenTool, Image as ImageIcon, Sparkles, Globe } from 'lucide-react';
+import { translations } from './translations';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'captions' | 'visuals' | 'planner' | 'enhance'>('captions');
   const [content, setContent] = useState<GeneratedContent | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [language, setLanguage] = useState<Language>('en');
+
+  const t = translations[language];
 
   const handleGenerate = async (input: UserInput) => {
     if (!input.imageFile) return;
@@ -24,7 +28,8 @@ const App: React.FC = () => {
       const generated = await generateSocialContent(
         input.imageFile,
         input.description,
-        input.platform
+        input.platform,
+        input.language
       );
       setContent(generated);
     } catch (err) {
@@ -40,10 +45,14 @@ const App: React.FC = () => {
     setError(null);
   };
 
+  const toggleLanguage = () => {
+    setLanguage(prev => prev === 'en' ? 'id' : 'en');
+  };
+
   return (
     <div className="min-h-screen bg-[#FBFBFD] text-zinc-900 font-sans selection:bg-zinc-200 flex flex-col relative">
       <header className="sticky top-0 z-50 bg-[#FBFBFD]/80 backdrop-blur-md border-b border-zinc-200/50">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-center md:justify-start">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setActiveTab('captions'); handleReset(); }}>
             <img 
               src="https://storage.googleapis.com/kanagaraappsbucket/Main%20Logo%20Kanagara%202025.png" 
@@ -52,6 +61,14 @@ const App: React.FC = () => {
             />
             <h1 className="text-lg font-bold tracking-tight">Kana Creator</h1>
           </div>
+          
+          <button 
+            onClick={toggleLanguage}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-zinc-200 text-xs font-bold uppercase tracking-wider hover:bg-zinc-50 transition-colors shadow-sm"
+          >
+            <Globe size={14} />
+            <span>{language === 'en' ? 'EN' : 'ID'}</span>
+          </button>
         </div>
       </header>
 
@@ -69,33 +86,33 @@ const App: React.FC = () => {
               <div className="flex flex-col items-center animate-fade-in pt-8 md:pt-16">
                 <div className="text-center mb-12 max-w-2xl">
                   <h2 className="text-4xl md:text-6xl font-extrabold tracking-tight text-zinc-900 mb-6 leading-tight">
-                    Create content that <br/>
+                    {t.heroTitle} <br/>
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-zinc-400 to-zinc-900">
-                      resonates.
+                      {t.heroSubtitle}
                     </span>
                   </h2>
                   <p className="text-lg text-zinc-500 font-medium max-w-lg mx-auto leading-relaxed">
-                    Upload your visual, define the vibe. AI-crafted captions, hooks, and video scripts for the modern aesthetic.
+                    {t.heroDesc}
                   </p>
                 </div>
-                <InputForm onSubmit={handleGenerate} isLoading={isLoading} />
+                <InputForm onSubmit={handleGenerate} isLoading={isLoading} language={language} />
               </div>
             ) : (
-              <ResultDisplay content={content} onReset={handleReset} />
+              <ResultDisplay content={content} onReset={handleReset} language={language} />
             )}
           </>
         )}
         
         {activeTab === 'visuals' && (
-          <ImageGenerator />
+          <ImageGenerator language={language} />
         )}
 
         {activeTab === 'planner' && (
-          <Planner />
+          <Planner language={language} />
         )}
 
         {activeTab === 'enhance' && (
-          <Enhance />
+          <Enhance language={language} />
         )}
       </main>
 
@@ -111,7 +128,7 @@ const App: React.FC = () => {
             `}
           >
             <PenTool size={18} strokeWidth={2.5} />
-            <span>Captions</span>
+            <span>{t.navCaptions}</span>
           </button>
 
           <button
@@ -123,7 +140,7 @@ const App: React.FC = () => {
             `}
           >
             <Sparkles size={18} strokeWidth={2.5} />
-            <span>Enhance</span>
+            <span>{t.navEnhance}</span>
           </button>
 
           <button
@@ -135,7 +152,7 @@ const App: React.FC = () => {
             `}
           >
             <ImageIcon size={18} strokeWidth={2.5} />
-            <span>Visuals</span>
+            <span>{t.navVisuals}</span>
           </button>
 
           <button
@@ -147,7 +164,7 @@ const App: React.FC = () => {
             `}
           >
             <LayoutGrid size={18} strokeWidth={2.5} />
-            <span>Planner</span>
+            <span>{t.navPlanner}</span>
           </button>
         </nav>
       </div>

@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { GeneratedContent, Platform, VisualStyle, EnhanceSettings } from "../types";
+import { GeneratedContent, Platform, VisualStyle, EnhanceSettings, Language } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -33,9 +33,14 @@ const responseSchema: Schema = {
 export const generateSocialContent = async (
   imageFile: File,
   description: string,
-  platform: Platform
+  platform: Platform,
+  language: Language
 ): Promise<GeneratedContent> => {
   const base64Image = await fileToBase64(imageFile);
+
+  const langInstruction = language === 'id' 
+    ? "OUTPUT LANGUAGE: Indonesian (Bahasa Indonesia). Use formal yet trendy Indonesian suitable for social media." 
+    : "OUTPUT LANGUAGE: English.";
 
   const systemInstruction = `
     You are Kana Creator, an expert social media strategist and creative director.
@@ -46,6 +51,8 @@ export const generateSocialContent = async (
     - Persona: Tech-savvy, urban living, minimalists, Apple ecosystem enthusiasts.
     - Tone: Modern, clean, professional yet relatable, witty, authentic. Avoid cringey hashtags or overuse of emojis.
     
+    ${langInstruction}
+
     TASK:
     Analyze the provided image and description to create content for ${platform}.
     
@@ -93,15 +100,19 @@ export const generateSocialContent = async (
 export const generateVisualContent = async (
   imageFile: File,
   context: string,
-  style: VisualStyle
+  style: VisualStyle,
+  language: Language
 ): Promise<string> => {
   const base64Image = await fileToBase64(imageFile);
   
+  const langContext = language === 'id' ? "If any text is displayed in the image (like for Infographics), it MUST be in Indonesian." : "Text should be in English.";
+
   const prompt = `
     Create a high-quality, professional Instagram post (vertical 4:5 ratio) featuring this product.
     
     Style: ${style}
     Context & Details to include: ${context}
+    ${langContext}
     
     Instructions:
     - Use the uploaded image as the source material for the product.

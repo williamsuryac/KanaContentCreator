@@ -15,6 +15,8 @@ export enum VisualStyle {
   MEME = 'Meme',
 }
 
+export type Language = 'en' | 'id';
+
 export interface VideoIdea {
   title: string;
   script: string;
@@ -33,6 +35,7 @@ export interface UserInput {
   imageFile: File | null;
   description: string;
   platform: Platform;
+  language: Language;
 }
 
 export interface EnhanceSettings {

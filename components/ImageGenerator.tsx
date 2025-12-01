@@ -1,10 +1,15 @@
 
 import React, { useState, useRef } from 'react';
-import { VisualStyle } from '../types';
-import { Upload, Download, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { VisualStyle, Language } from '../types';
+import { Upload, Sparkles, Image as ImageIcon, Download } from 'lucide-react';
 import { generateVisualContent } from '../services/geminiService';
+import { translations } from '../translations';
 
-const ImageGenerator: React.FC = () => {
+interface ImageGeneratorProps {
+  language?: Language;
+}
+
+const ImageGenerator: React.FC<ImageGeneratorProps> = ({ language = 'en' }) => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [context, setContext] = useState('');
@@ -14,6 +19,7 @@ const ImageGenerator: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const t = translations[language];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -44,7 +50,7 @@ const ImageGenerator: React.FC = () => {
     setGeneratedImage(null);
 
     try {
-      const result = await generateVisualContent(imageFile, context, style);
+      const result = await generateVisualContent(imageFile, context, style, language as Language);
       setGeneratedImage(result);
     } catch (err) {
       console.error(err);
@@ -66,10 +72,10 @@ const ImageGenerator: React.FC = () => {
     <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold tracking-tight text-zinc-900 mb-2">
-          Visual Generator
+          {t.visTitle}
         </h2>
         <p className="text-zinc-500">
-          Turn your product photos into professionally designed social media posts.
+          {t.visDesc}
         </p>
       </div>
 
@@ -98,7 +104,7 @@ const ImageGenerator: React.FC = () => {
               <>
                 <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-medium backdrop-blur-sm">
-                  Change Source Image
+                  {t.changeImage}
                 </div>
               </>
             ) : (
@@ -106,7 +112,7 @@ const ImageGenerator: React.FC = () => {
                 <div className="p-4 bg-zinc-100 rounded-full mb-4 group-hover:scale-110 transition-transform">
                   <Upload size={32} />
                 </div>
-                <p className="font-medium text-lg">Upload Product</p>
+                <p className="font-medium text-lg">{t.uploadProduct}</p>
                 <p className="text-sm text-zinc-400 mt-1">4:5 vertical optimization</p>
               </div>
             )}
@@ -114,18 +120,18 @@ const ImageGenerator: React.FC = () => {
 
           {/* Context Input */}
           <div className="space-y-2">
-             <label className="text-sm font-semibold text-zinc-500 uppercase tracking-wider ml-1">Context & Details</label>
+             <label className="text-sm font-semibold text-zinc-500 uppercase tracking-wider ml-1">{t.context}</label>
              <textarea
                 value={context}
                 onChange={(e) => setContext(e.target.value)}
-                placeholder="E.g., 'Flash sale 50% off', 'Sustainable materials', or 'Use for morning routine'. This text may appear in the design."
+                placeholder={t.visContextPlaceholder}
                 className="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all resize-none h-24 text-sm text-zinc-700 placeholder:text-zinc-400"
              />
           </div>
 
           {/* Style Selection */}
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-zinc-500 uppercase tracking-wider ml-1">Visual Style</label>
+            <label className="text-sm font-semibold text-zinc-500 uppercase tracking-wider ml-1">{t.visualStyle}</label>
             <div className="grid grid-cols-2 gap-2">
               {Object.values(VisualStyle).map((s) => (
                 <button
@@ -155,12 +161,12 @@ const ImageGenerator: React.FC = () => {
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Generating Visual...
+                {t.generatingVisual}
               </span>
             ) : (
               <span className="flex items-center justify-center gap-2">
                 <Sparkles size={20} />
-                Generate Design
+                {t.generateDesign}
               </span>
             )}
           </button>
@@ -184,19 +190,19 @@ const ImageGenerator: React.FC = () => {
                <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex justify-center">
                  <button 
                    onClick={handleDownload}
-                   className="flex items-center gap-2 bg-white text-zinc-900 px-6 py-3 rounded-full font-bold hover:bg-zinc-100 transition-colors transform active:scale-95"
+                   className="flex items-center gap-2 bg-white text-zinc-900 px-6 py-2 rounded-full font-bold shadow-lg hover:bg-zinc-100 transition-colors"
                  >
                    <Download size={18} />
-                   Download Image
+                   {t.downloadImage}
                  </button>
                </div>
              </div>
           ) : (
-            <div className="text-center text-zinc-400 space-y-4">
-              <div className="w-20 h-20 bg-zinc-200 rounded-full flex items-center justify-center mx-auto">
-                <ImageIcon size={32} className="opacity-50" />
-              </div>
-              <p>Generated artwork will appear here</p>
+            <div className="text-center text-zinc-400">
+               <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-zinc-100">
+                 <ImageIcon size={32} />
+               </div>
+               <p className="font-medium">{t.artworkPlaceholder}</p>
             </div>
           )}
         </div>

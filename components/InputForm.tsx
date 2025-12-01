@@ -1,19 +1,23 @@
 
 import React, { useState, useRef } from 'react';
-import { Platform, UserInput } from '../types';
+import { Platform, UserInput, Language } from '../types';
 import { Upload, Instagram, AtSign, Video } from 'lucide-react';
+import { translations } from '../translations';
 
 interface InputFormProps {
   onSubmit: (input: UserInput) => void;
   isLoading: boolean;
+  language?: Language;
 }
 
-const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
+const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading, language = 'en' }) => {
   const [description, setDescription] = useState('');
   const [platform, setPlatform] = useState<Platform>(Platform.INSTAGRAM);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const t = translations[language];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -36,7 +40,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ imageFile, description, platform });
+    onSubmit({ imageFile, description, platform, language });
   };
 
   return (
@@ -63,7 +67,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
           <div className="relative w-full aspect-video rounded-2xl overflow-hidden shadow-sm">
             <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-medium backdrop-blur-sm">
-              Change Image
+              {t.changeImage}
             </div>
           </div>
         ) : (
@@ -71,15 +75,15 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
             <div className="p-4 bg-zinc-100 rounded-full mb-4 group-hover:scale-110 transition-transform">
               <Upload size={32} />
             </div>
-            <p className="font-medium text-lg">Drop your visual here</p>
-            <p className="text-sm text-zinc-400 mt-1">or click to browse</p>
+            <p className="font-medium text-lg">{t.dropVisual}</p>
+            <p className="text-sm text-zinc-400 mt-1">{t.clickBrowse}</p>
           </div>
         )}
       </div>
 
       {/* Platform Selection */}
       <div className="space-y-3">
-        <label className="text-sm font-semibold text-zinc-500 uppercase tracking-wider ml-1">Platform</label>
+        <label className="text-sm font-semibold text-zinc-500 uppercase tracking-wider ml-1">{t.platform}</label>
         <div className="flex gap-2 p-1 bg-zinc-100/80 rounded-2xl">
           {[Platform.INSTAGRAM, Platform.TIKTOK, Platform.THREADS].map((p) => (
             <button
@@ -103,11 +107,11 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
 
       {/* Description */}
       <div className="space-y-3">
-        <label className="text-sm font-semibold text-zinc-500 uppercase tracking-wider ml-1">Context</label>
+        <label className="text-sm font-semibold text-zinc-500 uppercase tracking-wider ml-1">{t.context}</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Describe the vibe, context, or specific details you want to highlight..."
+          placeholder={t.contextPlaceholder}
           className="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all resize-none h-32 text-zinc-700 placeholder:text-zinc-400"
         />
       </div>
@@ -124,10 +128,10 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, isLoading }) => {
         {isLoading ? (
           <span className="flex items-center justify-center gap-2">
             <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Crafting Content...
+            {t.generatingBtn}
           </span>
         ) : (
-          "Generate Content"
+          t.generateBtn
         )}
       </button>
     </form>
