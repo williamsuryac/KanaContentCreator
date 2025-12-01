@@ -24,6 +24,8 @@ export const translations = {
     authErrorParams: "Password or Email Incorrect",
     authErrorExists: "User already exists. Sign in?",
     passwordsDoNotMatch: "Passwords do not match",
+    or: "OR",
+    signInGoogle: "Sign in with Google",
     // Navigation
     navCaptions: "Captions",
     navEnhance: "Enhance",
@@ -124,6 +126,8 @@ export const translations = {
     authErrorParams: "Kata sandi atau Email salah",
     authErrorExists: "Pengguna sudah ada. Masuk?",
     passwordsDoNotMatch: "Kata sandi tidak cocok",
+    or: "ATAU",
+    signInGoogle: "Masuk dengan Google",
     // Navigation
     navCaptions: "Caption",
     navEnhance: "Penyempurnaan",

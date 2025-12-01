@@ -1,6 +1,6 @@
 
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -24,4 +24,6 @@ const db = getFirestore(app);
 // Initialize Storage with the specific bucket
 const storage = getStorage(app, "gs://kanacreator-af97d.firebasestorage.app");
 
-export { auth, app, analytics, db, storage };
+const googleProvider = new GoogleAuthProvider();
+
+export { auth, app, analytics, db, storage, googleProvider };
