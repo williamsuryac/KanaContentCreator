@@ -1,0 +1,158 @@
+
+import React, { useState } from 'react';
+import InputForm from './components/InputForm';
+import ResultDisplay from './components/ResultDisplay';
+import Planner from './components/Planner';
+import ImageGenerator from './components/ImageGenerator';
+import Enhance from './components/Enhance';
+import { UserInput, GeneratedContent } from './types';
+import { generateSocialContent } from './services/geminiService';
+import { LayoutGrid, PenTool, Image as ImageIcon, Sparkles } from 'lucide-react';
+
+const App: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'captions' | 'visuals' | 'planner' | 'enhance'>('captions');
+  const [content, setContent] = useState<GeneratedContent | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleGenerate = async (input: UserInput) => {
+    if (!input.imageFile) return;
+    
+    setIsLoading(true);
+    setError(null);
+    try {
+      const generated = await generateSocialContent(
+        input.imageFile,
+        input.description,
+        input.platform
+      );
+      setContent(generated);
+    } catch (err) {
+      setError("Failed to generate content. Please ensure your API key is valid and try again.");
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReset = () => {
+    setContent(null);
+    setError(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FBFBFD] text-zinc-900 font-sans selection:bg-zinc-200 flex flex-col relative">
+      <header className="sticky top-0 z-50 bg-[#FBFBFD]/80 backdrop-blur-md border-b border-zinc-200/50">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-center md:justify-start">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setActiveTab('captions'); handleReset(); }}>
+            <img 
+              src="https://storage.googleapis.com/kanagaraappsbucket/Main%20Logo%20Kanagara%202025.png" 
+              alt="Kana Creator Logo" 
+              className="w-8 h-8 object-contain" 
+            />
+            <h1 className="text-lg font-bold tracking-tight">Kana Creator</h1>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-6 py-8 flex-1 w-full pb-32">
+        {activeTab === 'captions' && (
+          <>
+            {error && (
+              <div className="max-w-2xl mx-auto mb-8 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-medium flex items-center gap-2 animate-fade-in">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500"/>
+                {error}
+              </div>
+            )}
+
+            {!content ? (
+              <div className="flex flex-col items-center animate-fade-in pt-8 md:pt-16">
+                <div className="text-center mb-12 max-w-2xl">
+                  <h2 className="text-4xl md:text-6xl font-extrabold tracking-tight text-zinc-900 mb-6 leading-tight">
+                    Create content that <br/>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-zinc-400 to-zinc-900">
+                      resonates.
+                    </span>
+                  </h2>
+                  <p className="text-lg text-zinc-500 font-medium max-w-lg mx-auto leading-relaxed">
+                    Upload your visual, define the vibe. AI-crafted captions, hooks, and video scripts for the modern aesthetic.
+                  </p>
+                </div>
+                <InputForm onSubmit={handleGenerate} isLoading={isLoading} />
+              </div>
+            ) : (
+              <ResultDisplay content={content} onReset={handleReset} />
+            )}
+          </>
+        )}
+        
+        {activeTab === 'visuals' && (
+          <ImageGenerator />
+        )}
+
+        {activeTab === 'planner' && (
+          <Planner />
+        )}
+
+        {activeTab === 'enhance' && (
+          <Enhance />
+        )}
+      </main>
+
+      {/* Floating Bottom Navigation */}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-6">
+        <nav className="flex items-center justify-between p-1.5 bg-white/90 backdrop-blur-xl rounded-full border border-white/20 shadow-2xl shadow-zinc-200/50 ring-1 ring-zinc-200">
+          <button
+            onClick={() => setActiveTab('captions')}
+            className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-300 gap-1
+              ${activeTab === 'captions' 
+                ? 'bg-zinc-900 text-white shadow-md transform scale-105' 
+                : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100'}
+            `}
+          >
+            <PenTool size={18} strokeWidth={2.5} />
+            <span>Captions</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('enhance')}
+            className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-300 gap-1
+              ${activeTab === 'enhance' 
+                ? 'bg-zinc-900 text-white shadow-md transform scale-105' 
+                : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100'}
+            `}
+          >
+            <Sparkles size={18} strokeWidth={2.5} />
+            <span>Enhance</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('visuals')}
+            className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-300 gap-1
+              ${activeTab === 'visuals' 
+                ? 'bg-zinc-900 text-white shadow-md transform scale-105' 
+                : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100'}
+            `}
+          >
+            <ImageIcon size={18} strokeWidth={2.5} />
+            <span>Visuals</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('planner')}
+            className={`flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-300 gap-1
+              ${activeTab === 'planner' 
+                ? 'bg-zinc-900 text-white shadow-md transform scale-105' 
+                : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100'}
+            `}
+          >
+            <LayoutGrid size={18} strokeWidth={2.5} />
+            <span>Planner</span>
+          </button>
+        </nav>
+      </div>
+    </div>
+  );
+};
+
+export default App;
