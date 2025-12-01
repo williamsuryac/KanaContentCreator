@@ -80,3 +80,19 @@ export const fetchPlannerGrid = async (userId: string): Promise<GridItem[]> => {
 
   return grid;
 };
+
+// Reset Entire Grid (Delete all images and Firestore docs)
+export const resetPlannerGrid = async (userId: string, gridItems: GridItem[]): Promise<void> => {
+  const promises = gridItems.map(async (item, index) => {
+    if (item.url) {
+      // 1. Delete from Storage (if path exists)
+      if (item.storagePath) {
+        await deletePlannerImage(item.storagePath);
+      }
+      // 2. Delete from Firestore
+      await deleteGridItemFromFirestore(userId, index);
+    }
+  });
+
+  await Promise.all(promises);
+};

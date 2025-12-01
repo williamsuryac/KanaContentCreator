@@ -1,12 +1,12 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Grid, Trash2, Plus, Image as ImageIcon, Download, Share, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, Home, Search, Clapperboard, User as UserIcon, ChevronDown, Menu, PlusSquare, X, Sparkles } from 'lucide-react';
+import { Grid, Trash2, Plus, Image as ImageIcon, Download, Share, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, Home, Search, Clapperboard, User as UserIcon, ChevronDown, Menu, PlusSquare, X, Sparkles, RotateCcw } from 'lucide-react';
 import { toJpeg } from 'html-to-image';
 import { translations } from '../translations';
 import { Language, GridItem, Platform, UserProfile } from '../types';
 import { generateSocialContent } from '../services/geminiService';
 import { User } from 'firebase/auth';
-import { uploadPlannerImage, saveGridItemToFirestore, deleteGridItemFromFirestore, deletePlannerImage, fetchPlannerGrid } from '../services/plannerService';
+import { uploadPlannerImage, saveGridItemToFirestore, deleteGridItemFromFirestore, deletePlannerImage, fetchPlannerGrid, resetPlannerGrid } from '../services/plannerService';
 
 interface PlannerProps {
   language?: Language;
@@ -22,7 +22,9 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en', user, userProfile })
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [hoveredUrl, setHoveredUrl] = useState<string | null>(null);
+  const [isPreviewSquare, setIsPreviewSquare] = useState(false);
   
   // Modal State
   const [editingItem, setEditingItem] = useState<{ index: number; item: GridItem } | null>(null);
@@ -71,7 +73,7 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en', user, userProfile })
       const newItem: GridItem = {
         id: `slot-${index}`,
         url,
-        file: null, // We don't need to persist File object in state once we have URL
+        file: file, // Keep the File object in memory for current session
         storagePath,
         caption: '',
         isLoading: false
@@ -226,6 +228,24 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en', user, userProfile })
     }
   };
 
+  const handleResetMockup = async () => {
+    if (!window.confirm(t.confirmReset)) return;
+
+    setIsResetting(true);
+    try {
+      await resetPlannerGrid(user.uid, gridItems);
+      
+      // Reset local state
+      setGridItems(Array(12).fill(null).map((_, i) => ({ id: `slot-${i}`, url: null, file: null, caption: '' })));
+      setHoveredUrl(null);
+    } catch (error) {
+      console.error("Failed to reset mockup:", error);
+      alert("Failed to reset mockup. Please try again.");
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   // Caption Modal Functions
   const openCaptionModal = (index: number, item: GridItem) => {
     setEditingItem({ index, item });
@@ -259,46 +279,6 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en', user, userProfile })
     }
   };
 
-  const handleGenerateCaption = async () => {
-    if (!editingItem) return;
-    
-    setIsGeneratingCaption(true);
-    try {
-      // We need a File object to send to Gemini. 
-      // Since we fetch from URL, we need to convert URL to Blob/File if local file is missing.
-      // However, geminiService expects a File. 
-      // For simplicity in this demo, we'll try to fetch the blob from the URL.
-      
-      let fileToUse = editingItem.item.file;
-      
-      if (!fileToUse && editingItem.item.url) {
-         const response = await fetch(editingItem.item.url);
-         const blob = await response.blob();
-         fileToUse = new File([blob], "image.jpg", { type: blob.type });
-      }
-
-      if (!fileToUse) {
-         alert("Cannot generate caption: Image source missing.");
-         return;
-      }
-      
-      const context = captionText || "Write an engaging, aesthetic caption for this photo.";
-      
-      const result = await generateSocialContent(
-        fileToUse,
-        context,
-        Platform.INSTAGRAM,
-        language as Language
-      );
-      
-      setCaptionText(result.caption);
-    } catch (error) {
-      console.error("Failed to generate caption", error);
-    } finally {
-      setIsGeneratingCaption(false);
-    }
-  };
-
   // Find caption for hovered item
   const hoveredItem = hoveredUrl ? gridItems.find(item => item.url === hoveredUrl) : null;
   const currentHoverCaption = hoveredItem?.caption || "Essential minimalism for your daily life. Discover our new collection designed for modern living. #SimpleLiving #Kanagara";
@@ -314,18 +294,33 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en', user, userProfile })
       <div className="flex flex-col items-center gap-6 flex-shrink-0">
         <div className="flex justify-between items-center w-full max-w-md">
           <h3 className="text-xl font-bold text-zinc-900">{t.gridPreview}</h3>
-          <button 
-            onClick={handleSaveImage}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 shadow-md hover:shadow-lg transform active:scale-95 duration-200"
-          >
-            {isSaving ? (
-               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <Download size={16} />
-            )}
-            {t.saveMockup}
-          </button>
+          
+          <div className="flex gap-2">
+            <button 
+              onClick={handleResetMockup}
+              disabled={isResetting || gridItems.every(i => !i.url)}
+              className="flex items-center gap-2 px-3 py-2 bg-zinc-100 text-zinc-900 rounded-full text-xs font-bold hover:bg-zinc-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm border border-zinc-200"
+              title={t.resetMockup}
+            >
+              {isResetting ? (
+                <span className="w-3.5 h-3.5 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
+              ) : (
+                <RotateCcw size={14} />
+              )}
+            </button>
+            <button 
+              onClick={handleSaveImage}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 shadow-md hover:shadow-lg transform active:scale-95 duration-200"
+            >
+              {isSaving ? (
+                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Download size={16} />
+              )}
+              {t.saveMockup}
+            </button>
+          </div>
         </div>
 
         <div 
@@ -472,7 +467,12 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en', user, userProfile })
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, index)}
                 onClick={() => item.url ? openCaptionModal(index, item) : triggerFileInput(index)}
-                onMouseEnter={() => item.url && setHoveredUrl(item.url)}
+                onMouseEnter={() => {
+                  if (item.url && item.url !== hoveredUrl) {
+                    setHoveredUrl(item.url);
+                    setIsPreviewSquare(false); // Reset to 4:5 default for new items
+                  }
+                }}
                 onMouseLeave={() => setHoveredUrl(null)}
                 className={`aspect-[4/5] relative group transition-all duration-200 
                   ${!item.url ? 'bg-zinc-50 hover:bg-zinc-100 cursor-pointer' : 'cursor-pointer'}
@@ -572,11 +572,19 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en', user, userProfile })
                     </div>
 
                     {/* Image */}
-                    <div className="w-full bg-zinc-100">
+                    <div className={`w-full bg-zinc-100 relative ${isPreviewSquare ? 'aspect-square' : 'aspect-[4/5]'}`}>
                       <img 
                          src={hoveredUrl} 
                          alt="Post" 
-                         className="w-full h-auto object-cover max-h-[535px] min-h-[300px]" // Limit height to keep looking like a 4:5 post
+                         className="w-full h-full object-cover"
+                         onLoad={(e) => {
+                           const img = e.currentTarget;
+                           // Calculate ratio
+                           const ratio = img.naturalWidth / img.naturalHeight;
+                           // Check if it's close to 1:1 (allow small tolerance)
+                           const isSquare = ratio > 0.95 && ratio < 1.05;
+                           setIsPreviewSquare(isSquare);
+                         }}
                       />
                     </div>
 
@@ -655,24 +663,6 @@ const Planner: React.FC<PlannerProps> = ({ language = 'en', user, userProfile })
                        />
                     </div>
                  </div>
-                 
-                 <button 
-                   onClick={handleGenerateCaption}
-                   disabled={isGeneratingCaption}
-                   className="w-full py-2.5 rounded-xl border border-zinc-200 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-zinc-50 transition-colors"
-                 >
-                   {isGeneratingCaption ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin" />
-                        {t.generating}
-                      </>
-                   ) : (
-                      <>
-                        <Sparkles size={16} />
-                        {t.generateCaption}
-                      </>
-                   )}
-                 </button>
               </div>
 
               <div className="p-4 border-t border-zinc-100 flex justify-end gap-3 bg-zinc-50/50">

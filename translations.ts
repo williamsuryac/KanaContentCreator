@@ -79,12 +79,15 @@ export const translations = {
     visContextPlaceholder: "E.g., 'Flash sale 50% off', 'Sustainable materials'. This text may appear in the design.",
     visualStyle: "Visual Style",
     generateDesign: "Generate Design",
-    generatingVisual: "Generating Visual...",
+    generatingVisual: "Membuat Visual...",
     downloadImage: "Download Image",
     artworkPlaceholder: "Generated artwork will appear here",
     // Planner
     gridPreview: "Grid Preview",
     saveMockup: "Save Mockup",
+    resetMockup: "Reset Mockup",
+    resetting: "Resetting...",
+    confirmReset: "Are you sure you want to reset the grid? This will delete all photos and captions permanently.",
     posts: "Posts",
     followers: "Followers",
     following: "Following",
@@ -97,6 +100,7 @@ export const translations = {
     save: "Save",
     cancel: "Cancel",
     generating: "Generating...",
+    captionError: "Cannot access image data. Please re-upload the image and try again.",
   },
   id: {
     heroTitle: "Buat konten yang",
@@ -181,6 +185,9 @@ export const translations = {
     // Planner
     gridPreview: "Pratinjau Grid",
     saveMockup: "Simpan Mockup",
+    resetMockup: "Reset Mockup",
+    resetting: "Mereset...",
+    confirmReset: "Apakah Anda yakin ingin mereset grid? Ini akan menghapus semua foto dan caption secara permanen.",
     posts: "Postingan",
     followers: "Pengikut",
     following: "Mengikuti",
@@ -193,5 +200,6 @@ export const translations = {
     save: "Simpan",
     cancel: "Batal",
     generating: "Membuat...",
+    captionError: "Tidak dapat mengakses data gambar. Silakan unggah ulang gambar dan coba lagi.",
   }
 };

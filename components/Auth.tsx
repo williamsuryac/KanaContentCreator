@@ -1,9 +1,13 @@
+
 import React, { useState, useRef } from 'react';
 import { auth } from '../services/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { translations } from '../translations';
 import { Language } from '../types';
 import { User, Lock, Mail, Upload, AlertCircle } from 'lucide-react';
+import { createUserDocument } from '../services/userService';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../services/firebase';
 
 interface AuthProps {
   language: Language;
@@ -40,7 +44,9 @@ const Auth: React.FC<AuthProps> = ({ language }) => {
       if (isLogin) {
         // LOGIN
         try {
-          await signInWithEmailAndPassword(auth, email, password);
+          const userCredential = await signInWithEmailAndPassword(auth, email, password);
+          // Ensure Firestore doc exists on login (sync)
+          await createUserDocument(userCredential.user);
         } catch (err: any) {
           if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
              throw new Error(t.authErrorParams);
@@ -55,10 +61,29 @@ const Auth: React.FC<AuthProps> = ({ language }) => {
 
         try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          // Only updating profile name, photo upload to storage skipped as per instructions
-          await updateProfile(userCredential.user, {
-             displayName: fullName
+          const user = userCredential.user;
+          
+          let photoURL = null;
+
+          // Upload Photo if exists
+          if (photo) {
+             const storageRef = ref(storage, `user_uploads/${user.uid}/profile_photo.jpg`);
+             await uploadBytes(storageRef, photo);
+             photoURL = await getDownloadURL(storageRef);
+          }
+
+          // Update Auth Profile
+          await updateProfile(user, {
+             displayName: fullName,
+             photoURL: photoURL
           });
+
+          // Create Firestore Document
+          await createUserDocument(user, {
+             displayName: fullName,
+             photoURL: photoURL || undefined
+          });
+
         } catch (err: any) {
           if (err.code === 'auth/email-already-in-use') {
              throw new Error(t.authErrorExists);
@@ -123,7 +148,7 @@ const Auth: React.FC<AuthProps> = ({ language }) => {
                    placeholder={t.fullName}
                    value={fullName}
                    onChange={(e) => setFullName(e.target.value)}
-                   className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
+                   className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all text-zinc-900"
                    required
                  />
                </div>
@@ -137,7 +162,7 @@ const Auth: React.FC<AuthProps> = ({ language }) => {
                placeholder={t.email}
                value={email}
                onChange={(e) => setEmail(e.target.value)}
-               className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
+               className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all text-zinc-900"
                required
              />
            </div>
@@ -149,7 +174,7 @@ const Auth: React.FC<AuthProps> = ({ language }) => {
                placeholder={t.password}
                value={password}
                onChange={(e) => setPassword(e.target.value)}
-               className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
+               className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all text-zinc-900"
                required
              />
            </div>
@@ -162,7 +187,7 @@ const Auth: React.FC<AuthProps> = ({ language }) => {
                  placeholder={t.confirmPassword}
                  value={confirmPassword}
                  onChange={(e) => setConfirmPassword(e.target.value)}
-                 className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
+                 className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all text-zinc-900"
                  required
                />
              </div>
